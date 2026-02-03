@@ -1,6 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:healthcast/screens/signup_screen.dart';
 import '../constants.dart';
+import 'dart:ui'; 
+import 'dart:math' as math;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -145,9 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
 
                  _GradientButton(
-                    text: "Login",
+                    text: "Sign In",
                     onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/weather');
+                      Navigator.pushReplacementNamed(context, '/splash2');
                     },
                   ),
 
@@ -195,9 +199,38 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 
-class _AuthScaffold extends StatelessWidget {
+class _AuthScaffold extends StatefulWidget {
   final Widget child;
   const _AuthScaffold({required this.child});
+
+  @override
+  State<_AuthScaffold> createState() => _AuthScaffoldState();
+}
+
+class _AuthScaffoldState extends State<_AuthScaffold>
+    with TickerProviderStateMixin {
+  late final AnimationController _bgCtrl;
+  
+
+  @override
+  void initState() {
+    super.initState();
+
+    _bgCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 7),
+    )..repeat();
+
+    
+    
+  }
+
+  @override
+  void dispose() {
+    _bgCtrl.dispose();
+    
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -210,39 +243,144 @@ class _AuthScaffold extends StatelessWidget {
         final horizontalPadding = (w * 0.06).clamp(16.0, 28.0);
         final maxContentWidth = w >= 700 ? 520.0 : 460.0;
 
-        return Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [PRIMARY, DARK_PRIMARY, SECONDARY],
-            ),
-          ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: 16 * scale,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: h - 32),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: maxContentWidth),
-                    child: child,
-                  ),
+        return AnimatedBuilder(
+          animation: _bgCtrl,
+          builder: (context, _) {
+            final t = _bgCtrl.value; 
+
+            
+            final begin = const Alignment(-1.0, -1.0);
+            final end = const Alignment(1.0, 1.0);
+
+
+           
+            final p1 = PRIMARY.withOpacity(0.95);
+            final p2 = DARK_PRIMARY.withOpacity(0.92);
+            final p3 = SECONDARY.withOpacity(0.90);
+
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: begin,
+                  end: end,
+                  stops: const [0.0, 0.55, 1.0],
+                  colors: [p1, p2, p3],
                 ),
               ),
-            ),
-          ),
+              child: Stack(
+                children: [
+                
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Stack(
+                        children: [
+                          _Blob(
+                            x: 0.08 + 0.06 * _wave(t),
+                            y: 0.12 + 0.05 * _wave(t + 0.25),
+                            size: 260,
+                            color: TEXT_COLOR_WHITE.withOpacity(0.16),
+                            blur: 34,
+                          ),
+                          _Blob(
+                            x: 0.72 + 0.08 * _wave(t + 0.35),
+                            y: 0.22 + 0.07 * _wave(t + 0.70),
+                            size: 220,
+                            color: SECONDARY.withOpacity(0.18),
+                            blur: 36,
+                          ),
+                         _Blob(
+                              x: 0.58,
+                              y: 0.78,
+                              size: 300,
+                              color: PRIMARY.withOpacity(0.18),
+                              blur: 40,
+                            ),
+
+
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  
+                  SafeArea(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 16 * scale,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: h - 32),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints:
+                                BoxConstraints(maxWidth: maxContentWidth),
+                            child: widget.child,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
 }
+
+
+double _wave(double t) {
+  
+  final v = (t % 1.0);
+  final tri = v < 0.5 ? (v * 2) : (2 - v * 2); 
+  final curved = Curves.easeInOut.transform(tri); 
+  return (curved * 2) - 1; // -1..1
+}
+
+class _Blob extends StatelessWidget {
+  final double x; 
+  final double y; 
+  final double size;
+  final Color color;
+  final double blur;
+
+  const _Blob({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.color,
+    required this.blur,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final h = MediaQuery.sizeOf(context).height;
+
+    return Positioned(
+      left: (w * x) - (size / 2),
+      top: (h * y) - (size / 2),
+      child: ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _AuthHeader extends StatelessWidget {
   final String title;
@@ -338,62 +476,232 @@ class _AuthCard extends StatelessWidget {
   }
 }
 
-class _GradientButton extends StatelessWidget {
+
+
+
+class _GradientButton extends StatefulWidget {
   final String text;
   final VoidCallback onPressed;
 
-  const _GradientButton({required this.text, required this.onPressed});
+  const _GradientButton({
+    required this.text,
+    required this.onPressed,
+  });
+
+  @override
+  State<_GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<_GradientButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+
+    
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 8200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final scale = _scaleForWidth(w);
+    final scale = _scaleForWidth(MediaQuery.sizeOf(context).width);
+    final r = BorderRadius.circular(14);
 
     return SizedBox(
       width: double.infinity,
-      height: (44 * scale).clamp(42.0, 50.0),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [
-              DARK_PRIMARY.withOpacity(0.92),
-              PRIMARY.withOpacity(0.92),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: PRIMARY.withOpacity(0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 10),
-            )
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+      height: (46 * scale).clamp(44.0, 54.0),
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) {
+          return Material(
+            color: Colors.transparent,
+            borderRadius: r,
+            clipBehavior: Clip.antiAlias,
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: r,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [DARK_PRIMARY, PRIMARY, SECONDARY],
+                  stops: [0.0, 0.55, 1.0],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: DARK_PRIMARY.withOpacity(0.22),
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _OrbitOutlinePainter(
+                          t: _ctrl.value, 
+                          radius: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              TEXT_COLOR_WHITE.withOpacity(0.10),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.6],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  InkWell(
+                    borderRadius: r,
+                    onTap: widget.onPressed,
+                    overlayColor: MaterialStateProperty.resolveWith((states) {
+                      if (states.contains(MaterialState.pressed)) {
+                        return Colors.black.withOpacity(0.10);
+                      }
+                      return null;
+                    }),
+                    child: Center(
+                      child: Text(
+                        widget.text,
+                        style: TextStyle(
+                          color: TEXT_COLOR_WHITE,
+                          fontSize: (14.5 * scale).clamp(13.5, 16.0),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.30,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: TEXT_COLOR_WHITE,
-              fontSize: (14 * scale).clamp(13.0, 15.0),
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
+
+class _OrbitOutlinePainter extends CustomPainter {
+  final double t; // 0..1
+  final double radius;
+
+  _OrbitOutlinePainter({
+    required this.t,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(1.0, 1.0, size.width - 2.0, size.height - 2.0),
+      Radius.circular(radius),
+    );
+
+    
+    final basePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = TEXT_COLOR_WHITE.withOpacity(0.22);
+
+    canvas.drawRRect(rrect, basePaint);
+
+    
+    final path = Path()..addRRect(rrect);
+    final pm = path.computeMetrics().first;
+    final total = pm.length;
+
+    
+    final headLen = total * 0.28; 
+    final start = t * total;
+    final end = start + headLen;
+
+    void drawSegment(double s, double e) {
+      final seg = pm.extractPath(s, e);
+
+      
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = 7.0
+        ..color = TEXT_COLOR_WHITE.withOpacity(0.22)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 10);
+
+      
+      final midGlow = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = 4.0
+        ..color = TEXT_COLOR_WHITE.withOpacity(0.22)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 5);
+
+      
+      final mainStroke = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = 2.3
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.transparent,
+            TEXT_COLOR_WHITE.withOpacity(0.75),
+            TEXT_COLOR_WHITE,
+            TEXT_COLOR_WHITE.withOpacity(0.75),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.35, 0.50, 0.65, 1.0],
+        ).createShader(rrect.outerRect);
+
+      canvas.drawPath(seg, glowPaint);
+      canvas.drawPath(seg, midGlow);
+      canvas.drawPath(seg, mainStroke);
+    }
+
+    if (end <= total) {
+      drawSegment(start, end);
+    } else {
+      
+      drawSegment(start, total);
+      drawSegment(0, end - total);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrbitOutlinePainter old) {
+    return old.t != t || old.radius != radius;
+  }
+}
+
 
 class _Label extends StatelessWidget {
   final String text;

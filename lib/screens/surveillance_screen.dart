@@ -10,8 +10,8 @@ class SurveillanceScreen extends StatefulWidget {
   State<SurveillanceScreen> createState() => _SurveillanceScreenState();
 }
 
-class _SurveillanceScreenState extends State<SurveillanceScreen> {
-
+class _SurveillanceScreenState extends State<SurveillanceScreen>
+    with SingleTickerProviderStateMixin {
   final List<String> _diseases = const [
     "Dengue",
     "Zika",
@@ -22,7 +22,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
 
   String _selectedDisease = "Dengue";
 
-  
   final List<String> _regions = const [
     "All Regions",
     "NCR (National Capital Region)",
@@ -46,7 +45,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
 
   String _selectedRegion = "All Regions";
 
-  
   static const Map<String, List<String>> _areasByRegion = {
     "NCR (National Capital Region)": [
       "Caloocan",
@@ -183,6 +181,44 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     ],
   };
 
+  late final AnimationController _pageCtrl;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _slideIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _fadeIn = CurvedAnimation(parent: _pageCtrl, curve: Curves.easeOutCubic);
+    _slideIn = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _pageCtrl, curve: Curves.easeOutCubic));
+
+    _pageCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _switchKey => "${_selectedDisease}__${_selectedRegion}";
+
+  void _setDisease(String v) {
+    if (v == _selectedDisease) return;
+    setState(() => _selectedDisease = v);
+  }
+
+  void _setRegion(String v) {
+    if (v == _selectedRegion) return;
+    setState(() => _selectedRegion = v);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -211,120 +247,136 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
             final padX = (w * 0.05).clamp(16.0, 22.0);
 
             final visibleAreas = _getVisibleAreas();
-
             final stats = _getStats();
+
             final bottomInset = MediaQuery.of(context).padding.bottom;
             final navSpace = (72 * scale).clamp(68.0, 84.0);
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                padX,
-                14 * scale,
-                padX,
-                (20 * scale) + navSpace + kBottomNavigationBarHeight + bottomInset,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                     
-                      _Label(text: "Select Disease", scale: scale),
-                      SizedBox(height: (6 * scale).clamp(6.0, 10.0)),
-                      _DropdownCard<String>(
-                        value: _selectedDisease,
-                        items: _diseases,
-                        scale: scale,
-                        onChanged: (v) => setState(() => _selectedDisease = v),
-                      ),
-
-                      SizedBox(height: (10 * scale).clamp(8.0, 14.0)),
-                      _Label(text: "Filter by Region", scale: scale),
-                      SizedBox(height: (6 * scale).clamp(6.0, 10.0)),
-                      _DropdownCard<String>(
-                        value: _selectedRegion,
-                        items: _regions,
-                        scale: scale,
-                        onChanged: (v) => setState(() => _selectedRegion = v),
-                      ),
-
-                      SizedBox(height: (14 * scale).clamp(12.0, 18.0)),
-
-                      // --- Stat cards ---
-                      Row(
+            return FadeTransition(
+              opacity: _fadeIn,
+              child: SlideTransition(
+                position: _slideIn,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    padX,
+                    14 * scale,
+                    padX,
+                    (20 * scale) +
+                        navSpace +
+                        kBottomNavigationBarHeight +
+                        bottomInset,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: _StatCard(
+                          _Label(text: "Select Disease", scale: scale),
+                          SizedBox(height: (6 * scale).clamp(6.0, 10.0)),
+                          _PickerCard(
+                            scale: scale,
+                            title: "Disease",
+                            value: _selectedDisease,
+                            items: _diseases,
+                            leadingIcon: Icons.bug_report_outlined,
+                            sheetTitle: "Select a Disease",
+                            onChanged: _setDisease,
+                            searchable: true,
+                          ),
+                          SizedBox(height: (10 * scale).clamp(8.0, 14.0)),
+                          _Label(text: "Filter by Region", scale: scale),
+                          SizedBox(height: (6 * scale).clamp(6.0, 10.0)),
+                          _PickerCard(
+                            scale: scale,
+                            title: "Region",
+                            value: _selectedRegion,
+                            items: _regions,
+                            leadingIcon: Icons.public_outlined,
+                            sheetTitle: "Select a Region",
+                            onChanged: _setRegion,
+                            searchable: true,
+                          ),
+                          SizedBox(height: (14 * scale).clamp(12.0, 18.0)),
+
+                          // ✅ Animated stats row (card-by-card stagger)
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 260),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            transitionBuilder: (child, anim) {
+                              final slide = Tween<Offset>(
+                                begin: const Offset(0, 0.06),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              );
+                              return FadeTransition(
+                                opacity: anim,
+                                child: SlideTransition(position: slide, child: child),
+                              );
+                            },
+                            child: _AnimatedStatsRow(
+                              key: ValueKey("stats_$_switchKey"),
                               scale: scale,
-                              title: "Active",
-                              value: stats["active"]!.toString(),
-                              icon: Icons.show_chart_rounded,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF1F6CFF), Color(0xFF66B6FF)],
-                              ),
+                              stats: stats,
                             ),
                           ),
-                          SizedBox(width: (10 * scale).clamp(8.0, 12.0)),
-                          Expanded(
-                            child: _StatCard(
-                              scale: scale,
-                              title: "Deceased",
-                              value: stats["died"]!.toString(),
-                              icon: Icons.error_outline,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFFE7000B), Color(0xFFFDA4AF)],
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: (10 * scale).clamp(8.0, 12.0)),
-                          Expanded(
-                            child: _StatCard(
-                              scale: scale,
-                              title: "Total",
-                              value: stats["total"]!.toString(),
-                              icon: Icons.bar_chart_rounded,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [SECONDARY.withOpacity(0.70), DARK_PRIMARY],
+
+                          SizedBox(height: (14 * scale).clamp(12.0, 18.0)),
+
+                          // Animated table card when selections change
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 280),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            transitionBuilder: (child, anim) {
+                              final slide = Tween<Offset>(
+                                begin: const Offset(0, 0.05),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              );
+                              return FadeTransition(
+                                opacity: anim,
+                                child: SlideTransition(position: slide, child: child),
+                              );
+                            },
+                            child: _CardShell(
+                              key: ValueKey("table_$_switchKey"),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _CardTitle(
+                                    icon: Icons.place_outlined,
+                                    title: "Regions & Provinces",
+                                    scale: scale,
+                                  ),
+                                  SizedBox(height: (10 * scale).clamp(8.0, 12.0)),
+                                  if (_selectedRegion == "All Regions") ...[
+                                    _AllRegionTables(scale: scale),
+                                  ] else ...[
+                                    // ✅ row animation runs here
+                                    _AreaTable(
+                                      scale: scale,
+                                      regionLabel: _selectedRegion,
+                                      areas: visibleAreas,
+                                      animate: true,
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-
-                      SizedBox(height: (14 * scale).clamp(12.0, 18.0)),
-
-                      // --- Regions & Provinces ---
-                      _CardShell(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _CardTitle(
-                              icon: Icons.place_outlined,
-                              title: "Regions & Provinces",
-                              scale: scale,
-                            ),
-                            SizedBox(height: (10 * scale).clamp(8.0, 12.0)),
-
-                            if (_selectedRegion == "All Regions") ...[
-                              _AllRegionTables(scale: scale),
-                            ] else ...[
-                              _AreaTable(
-                                scale: scale,
-                                regionLabel: _selectedRegion,
-                                areas: visibleAreas,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -338,14 +390,13 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
 
   List<String> _getVisibleAreas() {
     if (_selectedRegion == "All Regions") {
-      
       return const ["Quezon City", "Cebu", "Davao del Sur", "Iloilo", "Cagayan"];
     }
     return _areasByRegion[_selectedRegion] ?? const [];
   }
 
   Map<String, dynamic> _getStats() {
-    
+    // Demo stats (deterministic by selection)
     final seed = (_selectedDisease.hashCode + _selectedRegion.hashCode).abs();
     final active = 900 + (seed % 500);
     final died = 30 + (seed % 80);
@@ -358,8 +409,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     };
   }
 }
-
-// ---------------- UI pieces ----------------
 
 class _Label extends StatelessWidget {
   final String text;
@@ -379,60 +428,519 @@ class _Label extends StatelessWidget {
   }
 }
 
-class _DropdownCard<T> extends StatelessWidget {
-  final T value;
-  final List<T> items;
+/// ✅ Animated stats row (staggered)
+class _AnimatedStatsRow extends StatelessWidget {
   final double scale;
-  final ValueChanged<T> onChanged;
+  final Map<String, dynamic> stats;
 
-  const _DropdownCard({
-    required this.value,
-    required this.items,
+  const _AnimatedStatsRow({
+    super.key,
     required this.scale,
-    required this.onChanged,
+    required this.stats,
   });
 
   @override
   Widget build(BuildContext context) {
     final s = scale;
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14 * s),
-      decoration: BoxDecoration(
-        color: TEXT_COLOR_WHITE,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: LIGHT_PRIMARY.withOpacity(0.35), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          )
-        ],
+    return Row(
+      children: [
+        Expanded(
+          child: _StaggerIn(
+            index: 0,
+            child: _StatCard(
+              scale: s,
+              title: "Active",
+              value: stats["active"]!.toString(),
+              icon: Icons.show_chart_rounded,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1F6CFF), Color(0xFF66B6FF)],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+        Expanded(
+          child: _StaggerIn(
+            index: 1,
+            child: _StatCard(
+              scale: s,
+              title: "Deceased",
+              value: stats["died"]!.toString(),
+              icon: Icons.error_outline,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFE7000B), Color(0xFFFDA4AF)],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+        Expanded(
+          child: _StaggerIn(
+            index: 2,
+            child: _StatCard(
+              scale: s,
+              title: "Total",
+              value: stats["total"]!.toString(),
+              icon: Icons.bar_chart_rounded,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [SECONDARY.withOpacity(0.70), DARK_PRIMARY],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaggerIn extends StatefulWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggerIn({
+    required this.index,
+    required this.child,
+  });
+
+  @override
+  State<_StaggerIn> createState() => _StaggerInState();
+}
+
+class _StaggerInState extends State<_StaggerIn> {
+  bool _go = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: 70 * widget.index), () {
+      if (!mounted) return;
+      setState(() => _go = true);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaggerIn oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    
+    if (oldWidget.child.key != widget.child.key) {
+      _go = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Future.delayed(Duration(milliseconds: 70 * widget.index), () {
+          if (!mounted) return;
+          setState(() => _go = true);
+        });
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      opacity: _go ? 1 : 0,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        offset: _go ? Offset.zero : const Offset(0, 0.08),
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+          scale: _go ? 1 : 0.96,
+          child: widget.child,
+        ),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          isExpanded: true,
-          icon: Icon(Icons.expand_more_rounded, color: DARK_PRIMARY.withOpacity(0.65)),
-          items: items
-              .map(
-                (e) => DropdownMenuItem<T>(
-                  value: e,
-                  child: Text(
-                    e.toString(),
-                    style: TextStyle(
-                      color: PRIMARY.withOpacity(0.92),
-                      fontSize: (13 * s).clamp(12.0, 14.0),
-                      fontWeight: FontWeight.w400,
+    );
+  }
+}
+
+
+class _PickerCard extends StatelessWidget {
+  final double scale;
+  final String title;
+  final String value;
+  final List<String> items;
+  final String sheetTitle;
+  final IconData leadingIcon;
+  final ValueChanged<String> onChanged;
+  final bool searchable;
+
+  const _PickerCard({
+    required this.scale,
+    required this.title,
+    required this.value,
+    required this.items,
+    required this.sheetTitle,
+    required this.leadingIcon,
+    required this.onChanged,
+    this.searchable = true,
+  });
+
+  Future<void> _openSheet(BuildContext context) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _PickerSheet(
+          scale: scale,
+          title: sheetTitle,
+          current: value,
+          items: items,
+          searchable: searchable,
+        );
+      },
+    );
+
+    if (selected != null && selected != value) onChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = scale;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _openSheet(context),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: TEXT_COLOR_WHITE,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: LIGHT_PRIMARY.withOpacity(0.35), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12 * s, 11 * s, 10 * s, 11 * s),
+          child: Row(
+            children: [
+              Container(
+                width: (34 * s).clamp(32.0, 38.0),
+                height: (34 * s).clamp(32.0, 38.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      SECONDARY.withOpacity(0.18),
+                      DARK_PRIMARY.withOpacity(0.10),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: DARK_PRIMARY.withOpacity(0.08),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  leadingIcon,
+                  color: DARK_PRIMARY.withOpacity(0.75),
+                  size: (18 * s).clamp(16.0, 20.0),
+                ),
+              ),
+              SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: DARK_PRIMARY.withOpacity(0.55),
+                        fontSize: (10.5 * s).clamp(10.0, 12.0),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: (2 * s).clamp(2.0, 4.0)),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: PRIMARY.withOpacity(0.95),
+                        fontSize: (13.2 * s).clamp(12.5, 14.8),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: (8 * s).clamp(6.0, 10.0)),
+              Icon(
+                Icons.expand_more_rounded,
+                color: DARK_PRIMARY.withOpacity(0.65),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerSheet extends StatefulWidget {
+  final double scale;
+  final String title;
+  final String current;
+  final List<String> items;
+  final bool searchable;
+
+  const _PickerSheet({
+    required this.scale,
+    required this.title,
+    required this.current,
+    required this.items,
+    required this.searchable,
+  });
+
+  @override
+  State<_PickerSheet> createState() => _PickerSheetState();
+}
+
+class _PickerSheetState extends State<_PickerSheet> {
+  final _searchCtrl = TextEditingController();
+  String _q = "";
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.scale;
+
+    final maxH = MediaQuery.of(context).size.height * 0.82;
+    final filtered = widget.searchable && _q.trim().isNotEmpty
+        ? widget.items
+            .where((e) => e.toLowerCase().contains(_q.trim().toLowerCase()))
+            .toList()
+        : widget.items;
+
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: Container(
+            decoration: BoxDecoration(
+              color: TEXT_COLOR_WHITE,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.16),
+                  blurRadius: 22,
+                  offset: const Offset(0, -10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 8),
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                 ),
-              )
-              .toList(),
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
+                Padding(
+                  padding: EdgeInsets.fromLTRB(14 * s, 6 * s, 14 * s, 10 * s),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          style: TextStyle(
+                            color: PRIMARY,
+                            fontSize: (14.0 * s).clamp(13.0, 16.0),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: DARK_PRIMARY.withOpacity(0.70),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.searchable)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(14 * s, 0, 14 * s, 10 * s),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12 * s),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: DARK_PRIMARY.withOpacity(0.08),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.search_rounded,
+                            color: DARK_PRIMARY.withOpacity(0.55),
+                          ),
+                          SizedBox(width: (8 * s).clamp(6.0, 10.0)),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchCtrl,
+                              onChanged: (v) => setState(() => _q = v),
+                              style: TextStyle(
+                                color: PRIMARY.withOpacity(0.92),
+                                fontSize: (12.6 * s).clamp(12.0, 14.0),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: "Search…",
+                                hintStyle: TextStyle(
+                                  color: DARK_PRIMARY.withOpacity(0.40),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          if (_q.isNotEmpty)
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() => _q = "");
+                              },
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: (18 * s).clamp(16.0, 20.0),
+                                color: DARK_PRIMARY.withOpacity(0.55),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              "No results",
+                              style: TextStyle(
+                                color: DARK_PRIMARY.withOpacity(0.55),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding:
+                              EdgeInsets.fromLTRB(10 * s, 4 * s, 10 * s, 14 * s),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            color: Colors.black.withOpacity(0.06),
+                          ),
+                          itemBuilder: (context, i) {
+                            final item = filtered[i];
+                            final selected = item == widget.current;
+
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.pop(context, item),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOut,
+                                padding: EdgeInsets.fromLTRB(
+                                    10 * s, 11 * s, 10 * s, 11 * s),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: selected
+                                      ? SECONDARY.withOpacity(0.10)
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: selected
+                                        ? SECONDARY.withOpacity(0.35)
+                                        : Colors.transparent,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: (34 * s).clamp(32.0, 38.0),
+                                      height: (34 * s).clamp(32.0, 38.0),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        color: selected
+                                            ? SECONDARY.withOpacity(0.22)
+                                            : DARK_PRIMARY.withOpacity(0.06),
+                                      ),
+                                      child: Icon(
+                                        selected
+                                            ? Icons.check_rounded
+                                            : Icons.circle_outlined,
+                                        color: selected
+                                            ? SECONDARY.withOpacity(0.95)
+                                            : DARK_PRIMARY.withOpacity(0.45),
+                                        size: (18 * s).clamp(16.0, 20.0),
+                                      ),
+                                    ),
+                                    SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+                                    Expanded(
+                                      child: Text(
+                                        item,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: selected
+                                              ? PRIMARY.withOpacity(0.96)
+                                              : PRIMARY.withOpacity(0.88),
+                                          fontSize:
+                                              (12.8 * s).clamp(12.0, 14.5),
+                                          fontWeight: selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -462,12 +970,19 @@ class _StatCard extends StatelessWidget {
       builder: (context, c) {
         final tight = c.maxHeight < 70;
 
-        final padV = tight ? (8 * s).clamp(6.0, 10.0) : (12 * s).clamp(10.0, 14.0);
+        final padV = tight
+            ? (8 * s).clamp(6.0, 10.0)
+            : (12 * s).clamp(10.0, 14.0);
         final padH = (12 * s).clamp(10.0, 14.0);
 
-        final iconSize = tight ? (16 * s).clamp(14.0, 18.0) : (18 * s).clamp(16.0, 20.0);
-        final valueSize = tight ? (14.5 * s).clamp(13.0, 16.0) : (16.5 * s).clamp(15.5, 18.5);
-        final titleSize = tight ? (10.5 * s).clamp(10.0, 11.5) : (11.5 * s).clamp(11.0, 12.5);
+        final iconSize =
+            tight ? (16 * s).clamp(14.0, 18.0) : (18 * s).clamp(16.0, 20.0);
+        final valueSize = tight
+            ? (14.5 * s).clamp(13.0, 16.0)
+            : (16.5 * s).clamp(15.5, 18.5);
+        final titleSize = tight
+            ? (10.5 * s).clamp(10.0, 11.5)
+            : (11.5 * s).clamp(11.0, 12.5);
 
         return Container(
           padding: EdgeInsets.fromLTRB(padH, padV, padH, padV),
@@ -486,7 +1001,8 @@ class _StatCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: TEXT_COLOR_WHITE.withOpacity(0.95), size: iconSize),
+              Icon(icon,
+                  color: TEXT_COLOR_WHITE.withOpacity(0.95), size: iconSize),
               SizedBox(height: tight ? 6 : 10),
               FittedBox(
                 fit: BoxFit.scaleDown,
@@ -523,7 +1039,8 @@ class _StatCard extends StatelessWidget {
 
 class _CardShell extends StatelessWidget {
   final Widget child;
-  const _CardShell({required this.child});
+  const _CardShell({required this.child, required ValueKey<String> key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -563,7 +1080,9 @@ class _CardTitle extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(icon, color: SECONDARY.withOpacity(0.95), size: (18 * s).clamp(16.0, 20.0)),
+        Icon(icon,
+            color: SECONDARY.withOpacity(0.95),
+            size: (18 * s).clamp(16.0, 20.0)),
         const SizedBox(width: 8),
         Text(
           title,
@@ -637,7 +1156,8 @@ class _TableHeader extends StatelessWidget {
         children: [
           Expanded(flex: 5, child: Text(leftTitle, style: headerStyle)),
           Expanded(flex: 2, child: Center(child: Text("Active", style: headerStyle))),
-          Expanded(flex: 2, child: Center(child: Text("Deceased", style: headerStyle))),
+          Expanded(
+              flex: 2, child: Center(child: Text("Deceased", style: headerStyle))),
           Expanded(flex: 2, child: Center(child: Text("Total", style: headerStyle))),
         ],
       ),
@@ -645,26 +1165,73 @@ class _TableHeader extends StatelessWidget {
   }
 }
 
-class _AreaTable extends StatelessWidget {
+
+class _AreaTable extends StatefulWidget {
   final double scale;
   final String regionLabel;
   final List<String> areas;
+
+  
+  final bool animate;
 
   const _AreaTable({
     required this.scale,
     required this.regionLabel,
     required this.areas,
+    this.animate = true,
   });
 
   @override
+  State<_AreaTable> createState() => _AreaTableState();
+}
+
+class _AreaTableState extends State<_AreaTable>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+
+    if (widget.animate) {
+      _ctrl.forward(from: 0);
+    } else {
+      _ctrl.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AreaTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.regionLabel != widget.regionLabel ||
+        oldWidget.areas.length != widget.areas.length ||
+        oldWidget.animate != widget.animate) {
+      if (widget.animate) {
+        _ctrl.forward(from: 0);
+      } else {
+        _ctrl.value = 1;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final s = scale;
+    final s = widget.scale;
     final screenH = MediaQuery.of(context).size.height;
 
     final maxBodyH = (screenH * 0.35).clamp(220.0, 460.0);
-
-    
-    final needsScroll = areas.length > 8;
+    final needsScroll = widget.areas.length > 8;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -673,91 +1240,106 @@ class _AreaTable extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _GradientHeaderBar(scale: s, text: regionLabel),
+            _GradientHeaderBar(scale: s, text: widget.regionLabel),
             _TableHeader(scale: s, leftTitle: "Province / City"),
-
-          
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: maxBodyH),
               child: Scrollbar(
                 thumbVisibility: needsScroll,
                 child: ListView.separated(
                   padding: EdgeInsets.zero,
-                  shrinkWrap: true, 
+                  shrinkWrap: true,
                   physics: needsScroll
                       ? const ClampingScrollPhysics()
                       : const NeverScrollableScrollPhysics(),
-                  itemCount: areas.length,
+                  itemCount: widget.areas.length,
                   separatorBuilder: (_, __) => Divider(
                     height: 1,
                     color: Colors.black.withOpacity(0.05),
                   ),
                   itemBuilder: (context, i) {
-                    final name = areas[i];
+                    final name = widget.areas[i];
 
-                   
                     final base = name.hashCode.abs() % 30;
                     final active = 10 + base;
                     final died = base % 4;
                     final total = active + died;
 
-                    return Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: (12 * s).clamp(10.0, 14.0),
-                        vertical: (10 * s).clamp(8.0, 12.0),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: PRIMARY.withOpacity(0.90),
-                                fontSize: (11.5 * s).clamp(10.5, 12.5),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
+                    final n = widget.areas.length.clamp(1, 30);
+                    final start = (i / (n + 6)).clamp(0.0, 1.0);
+                    final end = (start + 0.45).clamp(0.0, 1.0);
+
+                    final anim = CurvedAnimation(
+                      parent: _ctrl,
+                      curve: Interval(start, end, curve: Curves.easeOutCubic),
+                    );
+
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.08),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: (12 * s).clamp(10.0, 14.0),
+                            vertical: (10 * s).clamp(8.0, 12.0),
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              "$active",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: const Color(0xFF1F6CFF),
-                                fontSize: (11.5 * s).clamp(10.5, 12.5),
-                                fontWeight: FontWeight.w500,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: PRIMARY.withOpacity(0.90),
+                                    fontSize: (11.5 * s).clamp(10.5, 12.5),
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              "$died",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: const Color(0xFFE7000B),
-                                fontSize: (11.5 * s).clamp(10.5, 12.5),
-                                fontWeight: FontWeight.w500,
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  "$active",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: const Color(0xFF1F6CFF),
+                                    fontSize: (11.5 * s).clamp(10.5, 12.5),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              "$total",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: PRIMARY.withOpacity(0.90),
-                                fontSize: (11.5 * s).clamp(10.5, 12.5),
-                                fontWeight: FontWeight.w500,
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  "$died",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: const Color(0xFFE7000B),
+                                    fontSize: (11.5 * s).clamp(10.5, 12.5),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
-                            ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  "$total",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: PRIMARY.withOpacity(0.90),
+                                    fontSize: (11.5 * s).clamp(10.5, 12.5),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   },
@@ -770,9 +1352,6 @@ class _AreaTable extends StatelessWidget {
     );
   }
 }
-
-
-
 
 class _AllRegionTables extends StatelessWidget {
   final double scale;
@@ -809,6 +1388,7 @@ class _AllRegionTables extends StatelessWidget {
             scale: s,
             regionLabel: regionKeys[i],
             areas: _SurveillanceScreenState._areasByRegion[regionKeys[i]] ?? const [],
+            animate: false, 
           ),
           SizedBox(height: (12 * s).clamp(10.0, 16.0)),
         ],

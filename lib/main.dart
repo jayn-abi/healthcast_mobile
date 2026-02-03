@@ -5,7 +5,7 @@ import 'package:healthcast/screens/profile_screen.dart';
 import 'package:healthcast/screens/surveillance_screen.dart';
 import 'package:healthcast/screens/weather_screen.dart';
 import 'package:healthcast/screens/disease_info_screen.dart';
-
+import 'package:healthcast/screens/splash_screen.dart';
 
 void main() {
   runApp(const MainApp());
@@ -18,15 +18,31 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/login',
-      routes: {
-        '/login': (_) => const LoginScreen(),
-        '/weather': (_) => const WeatherScreen(),
-         '/surveillance': (_) => const SurveillanceScreen(),
-         '/alerts': (_) => const AlertsScreen(),
-         '/diseases': (_) => const DiseasesScreen(),
-        '/profile': (_) => const ProfileScreen(),
 
+      
+      initialRoute: '/splash1',
+
+      routes: {
+        
+        '/splash1': (_) => const SplashScreen(
+              nextRoute: '/login',
+              duration: Duration(milliseconds: 10000), 
+            ),
+
+        '/login': (_) => const LoginScreen(),
+
+        
+        '/splash2': (_) => const SplashScreen(
+              nextRoute: '/weather',
+              duration: Duration(milliseconds: 6500),
+            ),
+
+        // Main screens
+        '/weather': (_) => const WeatherScreen(),
+        '/surveillance': (_) => const SurveillanceScreen(),
+        '/alerts': (_) => const AlertsScreen(),
+        '/diseases': (_) => const DiseasesScreen(),
+        '/profile': (_) => const ProfileScreen(),
       },
     );
   }

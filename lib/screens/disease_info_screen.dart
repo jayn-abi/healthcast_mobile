@@ -10,7 +10,8 @@ class DiseasesScreen extends StatefulWidget {
   State<DiseasesScreen> createState() => _DiseasesScreenState();
 }
 
-class _DiseasesScreenState extends State<DiseasesScreen> {
+class _DiseasesScreenState extends State<DiseasesScreen>
+    with SingleTickerProviderStateMixin {
   static const _diseases = <String>[
     "Dengue Fever",
     "Chikungunya",
@@ -20,6 +21,35 @@ class _DiseasesScreenState extends State<DiseasesScreen> {
   ];
 
   String _selected = _diseases.first;
+
+  // Page entrance
+  late final AnimationController _pageCtrl;
+  late final Animation<double> _pageFade;
+  late final Animation<Offset> _pageSlide;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+
+    _pageFade = CurvedAnimation(parent: _pageCtrl, curve: Curves.easeOutCubic);
+    _pageSlide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _pageCtrl, curve: Curves.easeOutCubic));
+
+    _pageCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,93 +71,123 @@ class _DiseasesScreenState extends State<DiseasesScreen> {
         extendBody: true,
         appBar: const HealthCastTopBar(
           title: "Disease Information",
-          subtitle: "Learn about mosquito-borne diseases and how to protect yourself",
+          subtitle:
+              "Learn about mosquito-borne diseases and how to protect yourself",
         ),
-        body: LayoutBuilder(
-          builder: (context, c) {
-            final w = c.maxWidth;
-            final scale = _scaleForWidth(w);
-            final padX = (w * 0.05).clamp(16.0, 22.0);
-            final bottomInset = MediaQuery.of(context).padding.bottom;
+        body: FadeTransition(
+          opacity: _pageFade,
+          child: SlideTransition(
+            position: _pageSlide,
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final w = c.maxWidth;
+                final scale = _scaleForWidth(w);
+                final padX = (w * 0.05).clamp(16.0, 22.0);
+                final bottomInset = MediaQuery.of(context).padding.bottom;
 
-            final info = DiseaseInfo.data[_selected]!;
+                final info = DiseaseInfo.data[_selected]!;
+                final hotspots = info.activeHotspots;
 
-            
-            final hotspots = info.activeHotspots;
-
-            final items = <AccordionItem>[
-              AccordionItem(
-                title: "What are the warning signs?",
-                icon: Icons.warning_amber_rounded,
-                bodyText: info.warningSigns,
-              ),
-              AccordionItem(
-                title: "What should I do if I have ${_shortName(_selected)}?",
-                icon: Icons.favorite_border_rounded,
-                richBody: info.careGuidelines,
-              ),
-              AccordionItem(
-                title: "Do’s and Don’ts",
-                icon: Icons.checklist_rounded,
-                richBody: info.dosAndDontsRich,
-              ),
-
-              
-              AccordionItem(
-                title: "Active Hotspots",
-                icon: Icons.location_on_outlined,
-                hotspots: hotspots,
-              ),
-
-              AccordionItem(
-                title: "Weather Correlation",
-                icon: Icons.insights_outlined,
-                bodyText:
-                    "Mosquito activity often increases with suitable temperature and standing water after rainfall. When you connect historical weather + case data, HealthCast can show correlations and risk signals for early action.",
-              ),
-            ];
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                padX,
-                14 * scale,
-                padX,
-                20 * scale + kBottomNavigationBarHeight + bottomInset + 14,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _DiseaseChips(
-                        scale: scale,
-                        items: _diseases,
-                        selected: _selected,
-                        onSelected: (v) => setState(() => _selected = v),
-                      ),
-                      SizedBox(height: (12 * scale).clamp(10.0, 16.0)),
-                      _DiseaseMainCard(
-                        scale: scale,
-                        disease: _selected,
-                        info: info,
-                      ),
-                      SizedBox(height: (12 * scale).clamp(10.0, 16.0)),
-                      _InfoAccordion(scale: scale, items: items),
-                    ],
+                final items = <AccordionItem>[
+                  AccordionItem(
+                    title: "What are the warning signs?",
+                    icon: Icons.warning_amber_rounded,
+                    bodyText: info.warningSigns,
                   ),
-                ),
-              ),
-            );
-          },
+                  AccordionItem(
+                    title: "What should I do if I have ${_shortName(_selected)}?",
+                    icon: Icons.favorite_border_rounded,
+                    richBody: info.careGuidelines,
+                  ),
+                  AccordionItem(
+                    title: "Do’s and Don’ts",
+                    icon: Icons.checklist_rounded,
+                    richBody: info.dosAndDontsRich,
+                  ),
+                  AccordionItem(
+                    title: "Active Hotspots",
+                    icon: Icons.location_on_outlined,
+                    hotspots: hotspots,
+                  ),
+                  AccordionItem(
+                    title: "Weather Correlation",
+                    icon: Icons.insights_outlined,
+                    bodyText:
+                        "High humidity and recent rainfall increase mosquito breeding. Take extra precautions.",
+                  ),
+                ];
+
+                return SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    padX,
+                    14 * scale,
+                    padX,
+                    20 * scale +
+                        kBottomNavigationBarHeight +
+                        bottomInset +
+                        14,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ✅ Chips with micro-bounce on selection
+                          _DiseaseChips(
+                            scale: scale,
+                            items: _diseases,
+                            selected: _selected,
+                            onSelected: (v) => setState(() => _selected = v),
+                          ),
+                          SizedBox(height: (12 * scale).clamp(10.0, 16.0)),
+
+                          // ✅ Animated swap when disease changes
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 260),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, anim) {
+                              final fade =
+                                  CurvedAnimation(parent: anim, curve: Curves.easeOut);
+                              final scaleA = Tween<double>(
+                                begin: 0.98,
+                                end: 1.0,
+                              ).animate(CurvedAnimation(
+                                parent: anim,
+                                curve: Curves.easeOutCubic,
+                              ));
+                              return FadeTransition(
+                                opacity: fade,
+                                child: ScaleTransition(scale: scaleA, child: child),
+                              );
+                            },
+                            child: _DiseaseMainCard(
+                              key: ValueKey(_selected),
+                              scale: scale,
+                              disease: _selected,
+                              info: info,
+                            ),
+                          ),
+
+                          SizedBox(height: (12 * scale).clamp(10.0, 16.0)),
+
+                          // ✅ Staggered entrance
+                          _InfoAccordionAnimated(scale: scale, items: items),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
         bottomNavigationBar: const HealthCastBottomNav(currentIndex: 3),
       ),
     );
   }
 }
-
-
 
 class _DiseaseChips extends StatelessWidget {
   final double scale;
@@ -143,115 +203,166 @@ class _DiseaseChips extends StatelessWidget {
   });
 
   @override
-  @override
-Widget build(BuildContext context) {
-  final s = scale;
+  Widget build(BuildContext context) {
+    final s = scale;
 
-  
-  LinearGradient _riskGradient(Color base) {
-    final mid = Color.lerp(base, Colors.white, 0.18)!;
-    return LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [base, mid, base],
+    LinearGradient _riskGradient(Color base) {
+      final mid = Color.lerp(base, Colors.white, 0.18)!;
+      return LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [base, mid, base],
+      );
+    }
+
+    return Wrap(
+      spacing: (8 * s).clamp(6.0, 10.0),
+      runSpacing: (8 * s).clamp(6.0, 10.0),
+      children: items.map((d) {
+        final isActive = d == selected;
+
+        final di = DiseaseInfo.data[d]!;
+        final chipFg = di.riskFg;
+
+        return _BouncyTap(
+          // ✅ small bounce on tap
+          onTap: () => onSelected(d),
+          borderRadius: BorderRadius.circular(999),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: EdgeInsets.symmetric(
+              horizontal: (12 * s).clamp(10.0, 14.0),
+              vertical: (8 * s).clamp(7.0, 10.0),
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: isActive ? _riskGradient(chipFg) : null,
+              color: isActive ? null : TEXT_COLOR_WHITE,
+              border: Border.all(
+                color: isActive ? Colors.transparent : chipFg.withOpacity(0.35),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isActive ? 0.12 : 0.05),
+                  blurRadius: isActive ? 14 : 10,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  d,
+                  style: TextStyle(
+                    color: isActive ? TEXT_COLOR_WHITE : chipFg,
+                    fontSize: (12.0 * s).clamp(11.2, 13.2),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.15,
+                  ),
+                ),
+                if (isActive) ...[
+                  SizedBox(width: (8 * s).clamp(6.0, 10.0)),
+                  Container(
+                    width: (26 * s).clamp(22.0, 28.0),
+                    height: (26 * s).clamp(22.0, 28.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 8,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: (16 * s).clamp(14.0, 18.0),
+                      color: const Color(0xFF9FB4C2),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// ✅ Micro-bounce wrapper for chip selection taps
+class _BouncyTap extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final BorderRadius borderRadius;
+
+  const _BouncyTap({
+    required this.child,
+    required this.onTap,
+    required this.borderRadius,
+  });
+
+  @override
+  State<_BouncyTap> createState() => _BouncyTapState();
+}
+
+class _BouncyTapState extends State<_BouncyTap>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+      lowerBound: 0.0,
+      upperBound: 1.0,
     );
   }
 
-  
-  return Wrap(
-    spacing: (8 * s).clamp(6.0, 10.0),
-    runSpacing: (8 * s).clamp(6.0, 10.0),
-    children: items.map((d) {
-      final isActive = d == selected;
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
-      
-      final di = DiseaseInfo.data[d]!;
-      final chipBg = di.riskBg;
-      final chipFg = di.riskFg;
+  Future<void> _play() async {
+    // down then up
+    await _ctrl.forward();
+    if (!mounted) return;
+    await _ctrl.reverse();
+  }
 
-      return InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: () => onSelected(d),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+  @override
+  Widget build(BuildContext context) {
+    final scale = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
 
-          
-          padding: EdgeInsets.symmetric(
-            horizontal: (12 * s).clamp(10.0, 14.0),
-            vertical: (8 * s).clamp(7.0, 10.0),
-          ),
-
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-
-            
-            gradient: isActive ? _riskGradient(chipFg) : null,
-
-            
-            color: isActive ? null : TEXT_COLOR_WHITE,
-
-            border: Border.all(
-             
-              color: isActive ? Colors.transparent : chipFg.withOpacity(0.35),
-              width: 1,
-            ),
-
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isActive ? 0.12 : 0.05),
-                blurRadius: isActive ? 14 : 10,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                d,
-                style: TextStyle(
-                  
-                  color: isActive ? TEXT_COLOR_WHITE : chipFg,
-                  fontSize: (12.0 * s).clamp(11.2, 13.2),
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.15,
-                ),
-              ),
-
-             
-              if (isActive) ...[
-                SizedBox(width: (8 * s).clamp(6.0, 10.0)),
-                Container(
-                  width: (26 * s).clamp(22.0, 28.0),
-                  height: (26 * s).clamp(22.0, 28.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.10),
-                        blurRadius: 8,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.check_rounded,
-                    size: (16 * s).clamp(14.0, 18.0),
-                    color: const Color(0xFF9FB4C2),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }).toList(),
-  );
-}
-
+    return InkWell(
+      borderRadius: widget.borderRadius,
+      onTap: () async {
+        await _play();
+        widget.onTap();
+      },
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, child) {
+          return Transform.scale(
+            scale: scale.value,
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
+    );
+  }
 }
 
 class _DiseaseMainCard extends StatelessWidget {
@@ -260,6 +371,7 @@ class _DiseaseMainCard extends StatelessWidget {
   final DiseaseInfo info;
 
   const _DiseaseMainCard({
+    super.key,
     required this.scale,
     required this.disease,
     required this.info,
@@ -269,146 +381,157 @@ class _DiseaseMainCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = scale;
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(14 * s, 14 * s, 14 * s, 12 * s),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: [0.5, 0.7, 1.0],
-          colors: [
-            Color(0xFFFFFFFF),
-            Color(0xFFF3F8FB),
-            Color.fromARGB(255, 197, 224, 238),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _DiseaseIcon(scale: s, bg: info.iconBg, icon: info.icon),
-              SizedBox(width: (12 * s).clamp(10.0, 14.0)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      disease,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: PRIMARY,
-                        fontSize: (15.0 * s).clamp(14.0, 17.0),
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: (6 * s).clamp(5.0, 8.0)),
-                    Row(
-                      children: [
-                        _TinyPill(
-                          text: info.riskLabel,
-                          fg: info.riskFg,
-                          bg: info.riskBg,
-                          scale: s,
-                        ),
-                        SizedBox(width: (8 * s).clamp(6.0, 10.0)),
-                        _TinyPill(
-                          text: info.trendLabel,
-                          fg: info.trendFg,
-                          bg: info.trendBg,
-                          scale: s,
-                          icon: Icons.trending_up_rounded,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        return Transform.translate(
+          offset: Offset(0, (1 - t) * 10),
+          child: Opacity(opacity: t, child: child),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(14 * s, 14 * s, 14 * s, 12 * s),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.5, 0.7, 1.0],
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFF3F8FB),
+              Color.fromARGB(255, 197, 224, 238),
             ],
           ),
-          SizedBox(height: (12 * s).clamp(10.0, 14.0)),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all((10 * s).clamp(9.0, 12.0)),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFF9FCFE),
-                  Color(0xFFF1F7FB),
-                ],
-              ),
-              border: Border.all(
-                color: LIGHT_PRIMARY.withOpacity(0.28),
-                width: 1,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 22,
+              offset: const Offset(0, 12),
             ),
-            child: Row(
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
               children: [
+                _DiseaseIcon(scale: s, bg: info.iconBg, icon: info.icon),
+                SizedBox(width: (12 * s).clamp(10.0, 14.0)),
                 Expanded(
-                  child: _MiniStatTile(
-                    scale: s,
-                    icon: Icons.groups_2_outlined,
-                    label: "Active Cases",
-                    value: info.activeCasesText,
-                  ),
-                ),
-                SizedBox(width: (10 * s).clamp(8.0, 12.0)),
-                Expanded(
-                  child: _MiniStatTile(
-                    scale: s,
-                    icon: Icons.location_on_outlined,
-                    label: "Hotspots",
-                    value: info.hotspotsText,
-                  ),
-                ),
-                SizedBox(width: (10 * s).clamp(8.0, 12.0)),
-                Expanded(
-                  child: _MiniStatTile(
-                    scale: s,
-                    icon: Icons.warning_amber_rounded,
-                    label: "Warning Signs",
-                    value: info.warningCountText,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        disease,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: PRIMARY,
+                          fontSize: (15.0 * s).clamp(14.0, 17.0),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: (6 * s).clamp(5.0, 8.0)),
+                      Row(
+                        children: [
+                          _TinyPill(
+                            text: info.riskLabel,
+                            fg: info.riskFg,
+                            bg: info.riskBg,
+                            scale: s,
+                          ),
+                          SizedBox(width: (8 * s).clamp(6.0, 10.0)),
+                          _TinyPill(
+                            text: info.trendLabel,
+                            fg: info.trendFg,
+                            bg: info.trendBg,
+                            scale: s,
+                            icon: Icons.trending_up_rounded,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: (12 * s).clamp(10.0, 14.0)),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(12 * s, 10 * s, 12 * s, 10 * s),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF6FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: LIGHT_PRIMARY.withOpacity(0.35),
-                width: 1,
+            SizedBox(height: (12 * s).clamp(10.0, 14.0)),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all((10 * s).clamp(9.0, 12.0)),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFF9FCFE),
+                    Color(0xFFF1F7FB),
+                  ],
+                ),
+                border: Border.all(
+                  color: LIGHT_PRIMARY.withOpacity(0.28),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _MiniStatTile(
+                      scale: s,
+                      icon: Icons.groups_2_outlined,
+                      label: "Active Cases",
+                      value: info.activeCasesText,
+                    ),
+                  ),
+                  SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+                  Expanded(
+                    child: _MiniStatTile(
+                      scale: s,
+                      icon: Icons.location_on_outlined,
+                      label: "Hotspots",
+                      value: info.hotspotsText,
+                    ),
+                  ),
+                  SizedBox(width: (10 * s).clamp(8.0, 12.0)),
+                  Expanded(
+                    child: _MiniStatTile(
+                      scale: s,
+                      icon: Icons.warning_amber_rounded,
+                      label: "Warning Signs",
+                      value: info.warningCountText,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Text(
-              info.shortSummary,
-              style: TextStyle(
-                color: DARK_PRIMARY.withOpacity(0.78),
-                fontSize: (11.8 * s).clamp(11.3, 13.0),
-                fontWeight: FontWeight.w500,
-                height: 1.25,
+            SizedBox(height: (12 * s).clamp(10.0, 14.0)),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(12 * s, 10 * s, 12 * s, 10 * s),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: LIGHT_PRIMARY.withOpacity(0.35),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                info.shortSummary,
+                style: TextStyle(
+                  color: DARK_PRIMARY.withOpacity(0.78),
+                  fontSize: (11.8 * s).clamp(11.3, 13.0),
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -494,7 +617,7 @@ class _TinyPill extends StatelessWidget {
   }
 }
 
-class _HotspotPill extends StatelessWidget {
+class _HotspotPill extends StatefulWidget {
   final double scale;
   final String text;
 
@@ -504,28 +627,56 @@ class _HotspotPill extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final s = scale;
+  State<_HotspotPill> createState() => _HotspotPillState();
+}
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: (10 * s).clamp(8.0, 12.0),
-        vertical: (6 * s).clamp(5.0, 8.0),
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6FAFC),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: LIGHT_PRIMARY.withOpacity(0.35),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: PRIMARY.withOpacity(0.80),
-          fontSize: (11.2 * s).clamp(10.7, 12.6),
-          fontWeight: FontWeight.w800,
+class _HotspotPillState extends State<_HotspotPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  )..forward();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.scale;
+
+    final fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    final scaleA = Tween<double>(begin: 0.96, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+
+    return FadeTransition(
+      opacity: fade,
+      child: ScaleTransition(
+        scale: scaleA,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: (10 * s).clamp(8.0, 12.0),
+            vertical: (6 * s).clamp(5.0, 8.0),
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6FAFC),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: LIGHT_PRIMARY.withOpacity(0.35),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              color: PRIMARY.withOpacity(0.80),
+              fontSize: (11.2 * s).clamp(10.7, 12.6),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
       ),
     );
@@ -568,7 +719,9 @@ class _MiniStatTile extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: SECONDARY.withOpacity(0.9), size: (18 * s).clamp(16.0, 20.0)),
+          Icon(icon,
+              color: SECONDARY.withOpacity(0.9),
+              size: (18 * s).clamp(16.0, 20.0)),
           SizedBox(height: (6 * s).clamp(5.0, 8.0)),
           Text(
             value,
@@ -594,8 +747,6 @@ class _MiniStatTile extends StatelessWidget {
   }
 }
 
-
-
 class RichBody {
   final String headerTitle;
   final String headerSubtitle;
@@ -613,8 +764,6 @@ class AccordionItem {
   final IconData icon;
   final String? bodyText;
   final RichBody? richBody;
-
-  
   final List<String>? hotspots;
 
   const AccordionItem({
@@ -626,11 +775,11 @@ class AccordionItem {
   });
 }
 
-class _InfoAccordion extends StatelessWidget {
+class _InfoAccordionAnimated extends StatelessWidget {
   final double scale;
   final List<AccordionItem> items;
 
-  const _InfoAccordion({
+  const _InfoAccordionAnimated({
     required this.scale,
     required this.items,
   });
@@ -640,12 +789,67 @@ class _InfoAccordion extends StatelessWidget {
     final s = scale;
 
     return Column(
-      children: items.map((it) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: (10 * s).clamp(8.0, 12.0)),
-          child: _AccordionTile(scale: s, item: it),
+      children: List.generate(items.length, (i) {
+        final it = items[i];
+        final delay = 70 * i;
+
+        return _DelayedEntrance(
+          delayMs: 120 + delay,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: (10 * s).clamp(8.0, 12.0)),
+            child: _AccordionTile(scale: s, item: it),
+          ),
         );
-      }).toList(),
+      }),
+    );
+  }
+}
+
+class _DelayedEntrance extends StatefulWidget {
+  final Widget child;
+  final int delayMs;
+
+  const _DelayedEntrance({
+    required this.child,
+    required this.delayMs,
+  });
+
+  @override
+  State<_DelayedEntrance> createState() => _DelayedEntranceState();
+}
+
+class _DelayedEntranceState extends State<_DelayedEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 360),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    final slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(position: slide, child: widget.child),
     );
   }
 }
@@ -701,7 +905,8 @@ class _AccordionTile extends StatelessWidget {
                 width: 1,
               ),
             ),
-            child: Icon(item.icon, color: SECONDARY, size: (18 * s).clamp(16.0, 20.0)),
+            child: Icon(item.icon,
+                color: SECONDARY, size: (18 * s).clamp(16.0, 20.0)),
           ),
           title: Text(
             item.title,
@@ -716,7 +921,6 @@ class _AccordionTile extends StatelessWidget {
             color: PRIMARY.withOpacity(0.55),
           ),
           children: [
-            
             if (hasHotspots)
               Wrap(
                 spacing: (8 * s).clamp(6.0, 10.0),
@@ -725,11 +929,11 @@ class _AccordionTile extends StatelessWidget {
                     .map((place) => _HotspotPill(scale: s, text: place))
                     .toList(),
               ),
-
             if (!hasHotspots && item.richBody != null)
               _RichAccordionBody(scale: s, body: item.richBody!),
-
-            if (!hasHotspots && item.richBody == null && item.bodyText != null)
+            if (!hasHotspots &&
+                item.richBody == null &&
+                item.bodyText != null)
               Text(
                 item.bodyText!,
                 style: TextStyle(
@@ -899,7 +1103,7 @@ class _StepTile extends StatelessWidget {
   }
 }
 
-
+// -------------------- DATA + HELPERS --------------------
 
 class DiseaseInfo {
   final IconData icon;
@@ -917,7 +1121,6 @@ class DiseaseInfo {
   final String hotspotsText;
   final String warningCountText;
 
- 
   final List<String> activeHotspots;
 
   final String shortSummary;
@@ -962,15 +1165,12 @@ class DiseaseInfo {
       activeCasesText: "1,117",
       hotspotsText: "4",
       warningCountText: "8",
-
-      
       activeHotspots: [
         "Quezon City",
         "Manila",
         "Pasig City",
         "Marikina City",
       ],
-
       shortSummary:
           "A mosquito-borne viral infection causing flu-like illness, and occasionally developing into a potentially lethal complication.",
       overview:
@@ -1004,7 +1204,6 @@ class DiseaseInfo {
         ],
       ),
     ),
-
     "Chikungunya": DiseaseInfo(
       icon: Icons.health_and_safety_rounded,
       iconBg: Color(0xFFE17100),
@@ -1050,62 +1249,51 @@ class DiseaseInfo {
         ],
       ),
     ),
-
-   "Zika Virus": DiseaseInfo(
-  icon: Icons.coronavirus_rounded,
-
-  
-  iconBg: const Color(0xFF2E7D32),
-
- 
-  riskLabel: "Low Risk",
+    "Zika Virus": DiseaseInfo(
+      icon: Icons.coronavirus_rounded,
+      iconBg: Color(0xFF2E7D32),
+      riskLabel: "Low Risk",
       riskFg: Color(0xFF009966),
       riskBg: Color(0xFFE6FFF5),
-
-  
-  trendLabel: "Stable",
+      trendLabel: "Stable",
       trendFg: Color(0xFF009966),
       trendBg: Color(0xFFE6FFF5),
-
-  activeCasesText: "—",
-  hotspotsText: "—",
-  warningCountText: "—",
-  activeHotspots: const [],
-
-  shortSummary:
-      "Zika is often mild, but infection during pregnancy can cause serious birth defects and neurological complications.",
-  overview:
-      "Zika virus is mainly spread by Aedes mosquitoes and can also be transmitted through sexual contact. Many infections show no symptoms.",
-  commonSymptoms:
-      "Mild fever, rash, red eyes (conjunctivitis), joint pain, muscle pain, and headache.",
-  warningSigns:
-      "Pregnant individuals with exposure or symptoms should seek medical guidance promptly. Urgent care is needed for neurological symptoms such as weakness or severe headache.",
-  careGuidelines: RichBody(
-    headerTitle: "Essential Care Guidelines",
-    headerSubtitle: "Most cases are mild, but pregnancy-related care is crucial.",
-    steps: [
-      "Consult a healthcare professional if pregnant or planning pregnancy after exposure",
-      "Rest and drink plenty of fluids",
-      "Use fever or pain relief only as advised by a healthcare professional",
-      "Prevent mosquito bites to reduce spread",
-      "Follow guidance to prevent sexual transmission after exposure",
-      "Seek urgent care if neurological symptoms occur",
-    ],
-  ),
-  dosAndDontsRich: RichBody(
-    headerTitle: "Do’s and Don’ts",
-    headerSubtitle: "Protect pregnancy and prevent spread.",
-    steps: [
-      "Do use repellents and long sleeves during mosquito-active hours",
-      "Do consult prenatal care providers if exposed during pregnancy",
-      "Do practice safer sex as advised after exposure",
-      "Don’t ignore pregnancy-related risk—even mild symptoms matter",
-      "Don’t rely on symptoms alone—many Zika infections are asymptomatic",
-    ],
-  ),
-),
-
-
+      activeCasesText: "—",
+      hotspotsText: "—",
+      warningCountText: "—",
+      activeHotspots: const [],
+      shortSummary:
+          "Zika is often mild, but infection during pregnancy can cause serious birth defects and neurological complications.",
+      overview:
+          "Zika virus is mainly spread by Aedes mosquitoes and can also be transmitted through sexual contact. Many infections show no symptoms.",
+      commonSymptoms:
+          "Mild fever, rash, red eyes (conjunctivitis), joint pain, muscle pain, and headache.",
+      warningSigns:
+          "Pregnant individuals with exposure or symptoms should seek medical guidance promptly. Urgent care is needed for neurological symptoms such as weakness or severe headache.",
+      careGuidelines: RichBody(
+        headerTitle: "Essential Care Guidelines",
+        headerSubtitle: "Most cases are mild, but pregnancy-related care is crucial.",
+        steps: [
+          "Consult a healthcare professional if pregnant or planning pregnancy after exposure",
+          "Rest and drink plenty of fluids",
+          "Use fever or pain relief only as advised by a healthcare professional",
+          "Prevent mosquito bites to reduce spread",
+          "Follow guidance to prevent sexual transmission after exposure",
+          "Seek urgent care if neurological symptoms occur",
+        ],
+      ),
+      dosAndDontsRich: RichBody(
+        headerTitle: "Do’s and Don’ts",
+        headerSubtitle: "Protect pregnancy and prevent spread.",
+        steps: [
+          "Do use repellents and long sleeves during mosquito-active hours",
+          "Do consult prenatal care providers if exposed during pregnancy",
+          "Do practice safer sex as advised after exposure",
+          "Don’t ignore pregnancy-related risk—even mild symptoms matter",
+          "Don’t rely on symptoms alone—many Zika infections are asymptomatic",
+        ],
+      ),
+    ),
     "Malaria": DiseaseInfo(
       icon: Icons.bloodtype_outlined,
       iconBg: Color(0xFF009966),
@@ -1151,64 +1339,53 @@ class DiseaseInfo {
         ],
       ),
     ),
-
     "Japanese Encephalitis": DiseaseInfo(
-  icon: Icons.psychology_alt_outlined,
-
-  
-  iconBg: const Color(0xFF2E7D32),
-
-  
-  riskLabel: "Low Risk",
-        riskFg: Color(0xFF009966),
+      icon: Icons.psychology_alt_outlined,
+      iconBg: Color(0xFF2E7D32),
+      riskLabel: "Low Risk",
+      riskFg: Color(0xFF009966),
       riskBg: Color(0xFFE6FFF5),
-
-  trendLabel: "Stable",
-       trendFg: Color(0xFF009966),
+      trendLabel: "Stable",
+      trendFg: Color(0xFF009966),
       trendBg: Color(0xFFE6FFF5),
-
-  activeCasesText: "—",
-  hotspotsText: "—",
-  warningCountText: "—",
-  activeHotspots: const [],
-
-  shortSummary:
-      "Japanese encephalitis is a mosquito-borne viral infection that can cause brain inflammation and may be life-threatening.",
-  overview:
-      "JE virus is transmitted mainly by Culex mosquitoes, often near rice fields and pig farms. Most infections are asymptomatic, but severe disease can cause encephalitis.",
-  commonSymptoms:
-      "Most infections show no symptoms. Severe illness includes fever, headache, neck stiffness, confusion, seizures, and neurological deficits.",
-  warningSigns:
-      "Urgent signs include seizures, confusion, weakness or paralysis, stiff neck, or altered consciousness—seek emergency care immediately.",
-  careGuidelines: RichBody(
-    headerTitle: "Essential Care Guidelines",
-    headerSubtitle: "Severe symptoms require emergency evaluation.",
-    steps: [
-      "Seek emergency care immediately for neurological symptoms",
-      "Avoid mosquito bites using repellents and nets",
-      "Follow medical advice—treatment is supportive in hospital settings",
-      "Monitor for worsening consciousness or breathing problems",
-      "Discuss vaccination guidance if living in or traveling to risk areas",
-      "Reduce mosquito breeding by removing standing water",
-    ],
-  ),
-  dosAndDontsRich: RichBody(
-    headerTitle: "Do’s and Don’ts",
-    headerSubtitle: "Prevention is key; don’t delay urgent care.",
-    steps: [
-      "Do seek urgent care for seizures or confusion",
-      "Do use mosquito protection, especially in rural areas",
-      "Do follow vaccination recommendations when applicable",
-      "Don’t ignore neurological symptoms—JE can progress fast",
-      "Don’t rely on home care alone for severe symptoms",
-    ],
-  ),
-),
-
+      activeCasesText: "—",
+      hotspotsText: "—",
+      warningCountText: "—",
+      activeHotspots: const [],
+      shortSummary:
+          "Japanese encephalitis is a mosquito-borne viral infection that can cause brain inflammation and may be life-threatening.",
+      overview:
+          "JE virus is transmitted mainly by Culex mosquitoes, often near rice fields and pig farms. Most infections are asymptomatic, but severe disease can cause encephalitis.",
+      commonSymptoms:
+          "Most infections show no symptoms. Severe illness includes fever, headache, neck stiffness, confusion, seizures, and neurological deficits.",
+      warningSigns:
+          "Urgent signs include seizures, confusion, weakness or paralysis, stiff neck, or altered consciousness—seek emergency care immediately.",
+      careGuidelines: RichBody(
+        headerTitle: "Essential Care Guidelines",
+        headerSubtitle: "Severe symptoms require emergency evaluation.",
+        steps: [
+          "Seek emergency care immediately for neurological symptoms",
+          "Avoid mosquito bites using repellents and nets",
+          "Follow medical advice—treatment is supportive in hospital settings",
+          "Monitor for worsening consciousness or breathing problems",
+          "Discuss vaccination guidance if living in or traveling to risk areas",
+          "Reduce mosquito breeding by removing standing water",
+        ],
+      ),
+      dosAndDontsRich: RichBody(
+        headerTitle: "Do’s and Don’ts",
+        headerSubtitle: "Prevention is key; don’t delay urgent care.",
+        steps: [
+          "Do seek urgent care for seizures or confusion",
+          "Do use mosquito protection, especially in rural areas",
+          "Do follow vaccination recommendations when applicable",
+          "Don’t ignore neurological symptoms—JE can progress fast",
+          "Don’t rely on home care alone for severe symptoms",
+        ],
+      ),
+    ),
   };
 }
-
-
 
 double _scaleForWidth(double width) {
   if (width >= 900) return 1.12;

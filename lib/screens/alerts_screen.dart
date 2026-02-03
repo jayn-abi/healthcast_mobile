@@ -443,7 +443,7 @@ class _SwipeBackground extends StatelessWidget {
   }
 }
 
-// ---------- Models ----------
+
 
 enum _AlertType { urgent, advisory, info }
 
